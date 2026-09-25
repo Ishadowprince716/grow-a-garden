@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('assert');
-const { isValidState, defaultState } = require('./state.js');
+const { isValidState, defaultState, validPlot } = require('./state.js');
 
 test('default state is valid', () => {
   assert.ok(isValidState(defaultState()));
@@ -19,5 +19,26 @@ test('negative coins rejected', () => {
 
 test('wrong plot count rejected', () => {
   const s = defaultState(); s.plots = [];
+  assert.ok(!isValidState(s));
+});
+
+test('empty plot valid, unknown crop rejected', () => {
+  const s = defaultState();
+  s.plots[0] = { type: 'carrot', plantedAt: Date.now(), watered: true };
+  assert.ok(validPlot(s.plots[0]));
+  assert.ok(validPlot(null));
+  s.plots[0] = { type: 'injected; DROP TABLE', plantedAt: 1, watered: false };
+  assert.ok(!validPlot(s.plots[0]));
+  assert.ok(!isValidState(s));
+});
+
+test('non-boolean watered rejected', () => {
+  const s = defaultState();
+  s.plots[0] = { type: 'tomato', plantedAt: 0, watered: 'yes' };
+  assert.ok(!isValidState(s));
+});
+
+test('level cap enforced', () => {
+  const s = defaultState(); s.level = 999;
   assert.ok(!isValidState(s));
 });

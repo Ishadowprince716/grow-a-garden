@@ -42,14 +42,14 @@ function gainXp(n) {
   S.xp += n;
   let leveled = false;
   while (S.xp >= needXp(S.level)) { S.xp -= needXp(S.level); S.level++; leveled = true; }
-  if (leveled) { SFX.levelup(); log('LEVEL UP! Now level ' + S.level); buildSeedMenu(); }
+  if (leveled) { SFX.levelup(); log('LEVEL UP! Now level ' + S.level); Metrics.track('levelup'); buildSeedMenu(); }
 }
 
 // ===== Actions =====
 function useTool(i) {
   if (i >= S.unlocked) {
     const cost = plotUnlockCost();
-    if (S.coins >= cost) { S.coins -= cost; S.unlocked++; SFX.sell(); log('Plot unlocked!'); }
+    if (S.coins >= cost) { S.coins -= cost; S.unlocked++; SFX.sell(); log('Plot unlocked!'); Metrics.track('unlock_plot'); }
     else log('Need ' + cost + ' coins to unlock.');
   }
   else if (tool === 'hoe') { if (S.plots[i]) { S.plots[i] = null; log('Cleared.'); } }
@@ -61,6 +61,7 @@ function useTool(i) {
         S.coins -= c.cost;
         S.plots[i] = { type: S.seedSel, plantedAt: Date.now(), watered: false };
         SFX.plant(); log(c.name + ' planted (-' + c.cost + ' coins).');
+        Metrics.track('plant_' + S.seedSel);
       } else log('Not enough coins.');
     } else log('Plot busy.');
   }
@@ -75,6 +76,7 @@ function useTool(i) {
     if (p && ready(p)) {
       S.basket.push(p.type); S.plots[i] = null; SFX.harvest();
       log(CROPS[p.type].name + ' harvested!');
+      Metrics.track('harvest');
     } else if (p) log('Not ready yet.');
     else log('Empty plot.');
   }
@@ -89,6 +91,7 @@ document.getElementById('sellBtn').addEventListener('click', () => {
   S.basket.forEach(t => { total += CROPS[t].sell; gainXp(CROPS[t].xp); });
   S.coins += total; S.basket = []; SFX.sell();
   log('Sold everything for ' + total + ' coins!');
+  Metrics.track('sell_' + total);
   render(); save();
 });
 
