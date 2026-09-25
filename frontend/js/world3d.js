@@ -36,6 +36,7 @@ const World = (() => {
     ground = grass; // expose to setSeason
 
     buildDecor();
+    buildFarmer();
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(innerWidth, innerHeight);
@@ -82,8 +83,8 @@ const World = (() => {
     roof.rotation.x = .5;
     box(1.6, 2.4, .2, 0x5a3a26, -8, 1.2, -11.9);                  // door
     [[10, -12], [-14, 4], [13, 5], [12, 8], [-13, -6], [-11, -11]].forEach(([x, z]) => {
-      box(.7, 2.6, .7, 0x6b4a2f, x, 1.3, z);                      // trunk
-      box(2.6, 2.2, 2.2, 0x2f8f4f, x, 3.4, z);                    // crown
+      box(.7, 2.6, .7, 0x6b4a3f, x, 1.3, z);                      // trunk
+      box(2.6, 2.2, 2.2, 0x2f9f4f, x, 3.4, z);                    // crown
     });
     for (let x = -16; x <= 16; x += 2) {                          // fence
       if (Math.abs(x) > 3) {
@@ -91,6 +92,31 @@ const World = (() => {
         box(2, .12, .12, 0xb08a55, x, .7, 13.8);
       }
     }
+  }
+
+  // ===== Farmer NPC — patrols, waves when idle =====
+  let farmer, currentWeather = 'sun';
+  function buildFarmer() {
+    const g = new THREE.Group();
+    g.position.y = .8;
+    // local box: creates mesh + adds to group (world offset = group pos + local)
+    const b = (w, h, d, color, x, y, z) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M(color));
+      m.position.set(x, y, z); m.castShadow = true;
+      g.add(m); return m;
+    };
+    // body
+    b(.42, .6, .24, 0x2a5c99, 0, .55, 0);
+    // head
+    b(.38, .34, .34, 0xf8d5a0, 0, .95, 0);
+    // arms
+    b(.12, .5, .12, 0x2a5c99, -.3, .5, 0);
+    b(.12, .5, .12, 0x2a5c99, .3, .5, 0);
+    // legs
+    b(.16, .44, .16, 0x1a3a6b, -.14, .25, 0);
+    b(.16, .44, .16, 0x1a3a6b, .14, .25, 0);
+    scene.add(g);
+    farmer = g;
   }
 
   // ===== Crop builders — stage: 0=sprout, 1=growing, 2=ripe =====
@@ -264,12 +290,23 @@ const World = (() => {
       const star = root.children.find(c => c.name === 'starfruit');
       if (star) star.rotation.y += dt * 1.5;
     });
+    // farmer idle wave / rain crouch
+    if (farmer) {
+      if (currentWeather === 'rain' || currentWeather === 'storm') {
+        farmer.position.y = .5;
+      } else {
+        farmer.position.y = .8;
+      }
+      farmer.position.x = Math.sin(performance.now() * .2) * 2;
+      farmer.position.z = -3 + Math.cos(performance.now() * .13) * 1.4;
+    }
     camera.position.set(Math.sin(orbit) * orbitDist, 12, Math.cos(orbit) * orbitDist);
     camera.lookAt(0, 0, 0);
     renderer.render(scene, camera);
   }
 
   function setWeather(id) {
+    currentWeather = id;
     const sky = { sun: 0x9fd4e8, rain: 0x7a8fa0, heat: 0xe8c07a, storm: 0x4a5568 }[id] || 0x9fd4e8;
     scene.background.set(sky);
     scene.fog.color.set(sky);
