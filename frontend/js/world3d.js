@@ -8,6 +8,7 @@ const World = (() => {
   let sun;
   let soilMeshes = [];
   let cropRoots = [];
+  let decorRoots = [];
   let timeOfDay = 0.3;
   const TILE = 2.4;
 
@@ -59,9 +60,13 @@ const World = (() => {
       const holder = new THREE.Group();
       holder.position.y = .35;
       g.add(holder);
+      const dholder = new THREE.Group();
+      dholder.position.y = .02;
+      g.add(dholder);
       scene.add(g);
       soilMeshes.push(soil);
       cropRoots.push(holder);
+      decorRoots.push(dholder);
     }
     addEventListener('resize', () => {
       camera.aspect = innerWidth / innerHeight;
@@ -277,6 +282,54 @@ const World = (() => {
     star:       (s) => cropStar(s),
   };
 
+  // ===== Decor builders =====
+  const DECOR_BUILDERS = {
+    lamp:  () => {
+      const g = new THREE.Group();
+      const p = new THREE.Mesh(new THREE.BoxGeometry(.14, .5, .14), M(0x5a4a2f));
+      p.position.y = .25; p.castShadow = true; g.add(p);
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(.2, 6, 5), M(0xffd27f));
+      lamp.position.y = .62; lamp.name = 'lampglow'; g.add(lamp);
+      return g;
+    },
+    fence: () => {
+      const g = new THREE.Group();
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(.9, .1, .1), M(0x9a7444));
+      rail.position.y = .3; rail.castShadow = true; g.add(rail);
+      [[-.35, 0], [.35, 0]].forEach(([x]) => {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(.08, .55, .08), M(0x7a5a34));
+        post.position.set(x, .27, 0); post.castShadow = true; g.add(post);
+      });
+      return g;
+    },
+    path:  () => {
+      const g = new THREE.Group();
+      const p = new THREE.Mesh(new THREE.BoxGeometry(1.6, .05, 1.6), M(0xb8b0a0));
+      p.position.y = .02; p.receiveShadow = true; g.add(p);
+      return g;
+    },
+    scare: () => {
+      const g = new THREE.Group();
+      const pole = new THREE.Mesh(new THREE.BoxGeometry(.08, .9, .08), M(0x6b4a2f));
+      pole.position.y = .45; pole.castShadow = true; g.add(pole);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(.22, 6, 5), M(0xe8d5a0));
+      head.position.y = .95; g.add(head);
+      const arms = new THREE.Mesh(new THREE.BoxGeometry(1.1, .08, .08), M(0x6b4a2f));
+      arms.position.y = .8; arms.castShadow = true; g.add(arms);
+      return g;
+    },
+    flower: () => {
+      const g = new THREE.Group();
+      [[-.3, 0, 0xe85a9a], [.1, -0, 0xffd27f], [.3, 0, 0xe85a9a], [-.05, 0, 0x9a5fd0]].forEach(([x, , c]) => {
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(.02, .02, .25, 4), M(0x2f8f4f));
+        stem.position.set(x, .12, 0); g.add(stem);
+        const petal = new THREE.Mesh(new THREE.SphereGeometry(.09, 5, 4), M(c));
+        petal.position.set(x, .28, 0); g.add(petal);
+      });
+      return g;
+    },
+  };
+
   // ===== Public API =====
   function growthStage(p) {
     // 0 = sprout, 1 = growing, 2 = ripe/harvest
@@ -301,6 +354,14 @@ const World = (() => {
       const soil = soilMeshes[i];
       const locked = i >= st.unlocked;
       soil.material.color.setHex(locked ? 0x3a4a3e : (p && p.watered ? 0x4a3120 : 0x6b4a2f));
+      // decor render
+      const d = (st.decor && st.decor[i]) || null;
+      const droot = decorRoots[i];
+      if (droot.dataset.key !== (d || '')) {
+        droot.clear();
+        droot.dataset.key = d || '';
+        if (d && DECOR_BUILDERS[d]) droot.add(DECOR_BUILDERS[d]());
+      }
     }
   }
 

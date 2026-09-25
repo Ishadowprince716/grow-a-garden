@@ -3,8 +3,8 @@
 // Data lives in data.js, sounds in sfx.js, persistence in api.js.
 
 // ===== State =====
-let S = { coins:20, xp:0, level:1, basket:[], plots:Array(GRID).fill(null), unlocked:8, seedSel:'carrot' };
-let tool = 'hand', logT;
+let S = { coins:20, xp:0, level:1, basket:[], plots:Array(GRID).fill(null), decor:Array(GRID).fill(null), unlocked:8, seedSel:'carrot' };
+let tool = 'hand', logT, dSel = 'lamp';
 let season = 'summer';
 const SEASON_MS = 10 * 60 * 1000; // 10 min real-time = 1 season
 const SEASONS = ['spring', 'summer', 'fall', 'winter'];
@@ -70,6 +70,17 @@ function useTool(i) {
     if (p && !p.watered) { p.watered = true; SFX.water(); log('Watered — grows 2x faster.'); }
     else if (p) log('Already watered.');
     else log('Nothing to water.');
+  }
+  else if (tool === 'decor') {
+    const d = DECOR.find(x => x.id === dSel);
+    if (S.decor[i]) log('Decor here already.');
+    else if (S.plots[i]) log('Plot has a crop — clear it first.');
+    else if (S.level < d.lvl) log('Need level ' + d.lvl + ' for ' + d.name + '.');
+    else if (S.coins >= d.cost) {
+      S.coins -= d.cost; S.decor[i] = dSel; SFX.sell();
+      log(d.name + ' placed (-' + d.cost + ' coins).');
+      Metrics.track('decor_' + dSel);
+    } else log('Not enough coins.');
   }
   else if (tool === 'hand') {
     const p = S.plots[i];
@@ -165,12 +176,28 @@ function buildSeedMenu() {
   m.appendChild(row);
 }
 
+// ===== Decor menu =====
+function buildDecorMenu() {
+  const m = document.getElementById('decorMenu'); if (!m) return; m.innerHTML = '';
+  DKEYS.forEach(k => {
+    const d = DECOR.find(x => x.id === k);
+    const b = document.createElement('button');
+    b.textContent = d.e + ' ' + d.name + ' (' + d.cost + ')';
+    b.disabled = S.level < d.lvl;
+    if (k === dSel) b.style.borderColor = 'var(--gold)';
+    b.onclick = () => { dSel = k; SFX.click(); buildDecorMenu(); };
+    m.appendChild(b);
+  });
+}
+
 // ===== Init & tick =====
 document.querySelectorAll('.tool').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
     btn.classList.add('active'); tool = btn.dataset.tool; SFX.click();
-    log({ hoe: 'Clear a plot.', seed: 'Pick a seed below.', water: 'Water a crop (2x speed).', hand: 'Harvest ripe crops.' }[tool]);
+    log({ hoe: 'Clear a plot.', seed: 'Pick a seed below.', water: 'Water a crop (2x speed).', hand: 'Harvest ripe crops.', decor: 'Pick decor, then place on an empty plot.' }[tool]);
+    if (tool === 'decor') buildDecorMenu();
+    else if (tool !== 'seed') document.getElementById('decorMenu').innerHTML = '';
   });
 });
 document.getElementById('resetBtn').onclick = () => {
@@ -185,7 +212,10 @@ function save() { API.save(S); }
 (async () => {
   const remote = await API.load();
   const fresh = !remote;
-  if (remote && Array.isArray(remote.plots) && remote.plots.length === GRID) S = remote;
+  if (remote && Array.isArray(remote.plots) && remote.plots.length === GRID) {
+    S = remote;
+    if (!Array.isArray(S.decor) || S.decor.length !== GRID) S.decor = Array(GRID).fill(null); // migrate old saves
+  }
   if (!fresh) {
     // welcome back: summarize what grew while away
     const readyNow = S.plots.filter(p => p && ready(p)).length;

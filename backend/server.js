@@ -47,6 +47,7 @@ function initDb() {
         xp INTEGER NOT NULL DEFAULT 0,
         level INTEGER NOT NULL DEFAULT 1,
         basket TEXT NOT NULL DEFAULT '[]',
+        decor TEXT NOT NULL DEFAULT '[]',
         unlocked INTEGER NOT NULL DEFAULT 8,
         seed_sel TEXT NOT NULL DEFAULT 'carrot',
         updated_at TEXT
@@ -66,6 +67,9 @@ function initDb() {
         UNIQUE(name)
       );
     `);
+    // migrate: add decor column if missing (older DBs)
+    try { db.prepare('SELECT decor FROM players LIMIT 1').get(); }
+    catch (e) { db.exec("ALTER TABLE players ADD COLUMN decor TEXT NOT NULL DEFAULT '[]'"); }
     console.log('[db] ready');
   } catch (e) {
     console.error('[db] disabled — run `npm install` in backend/ to enable:', e.message);
@@ -84,9 +88,12 @@ function loadState(player) {
   for (const p of db.prepare('SELECT * FROM plots WHERE player_id=?').all(player)) {
     if (p.type) plots[p.idx] = { type: p.type, plantedAt: p.planted_at, watered: !!p.watered };
   }
+  let decor;
+  try { decor = JSON.parse(row.decor || '[]'); } catch (e) { decor = Array(20).fill(null); }
+  if (!Array.isArray(decor) || decor.length !== 20) decor = Array(20).fill(null);
   return {
     coins: row.coins, xp: row.xp, level: row.level,
-    basket: JSON.parse(row.basket), plots, unlocked: row.unlocked, seedSel: row.seed_sel,
+    basket: JSON.parse(row.basket), plots, decor, unlocked: row.unlocked, seedSel: row.seed_sel,
   };
 }
 
@@ -97,11 +104,12 @@ function saveState(player, s) {
   const level = Math.min(Math.max(1, s.level | 0), 50);
   const unlocked = Math.min(Math.max(1, s.unlocked | 0), 20);
   const tx = db.transaction(() => {
-    db.prepare(`INSERT INTO players (id, coins, xp, level, basket, unlocked, seed_sel, updated_at)
-      VALUES (?,?,?,?,?,?,?,datetime('now'))
+    db.prepare(`INSERT INTO players (id, coins, xp, level, basket, decor, unlocked, seed_sel, updated_at)
+      VALUES (?,?,?,?,?,?,?,?,datetime('now'))
       ON CONFLICT(id) DO UPDATE SET coins=excluded.coins, xp=excluded.xp, level=excluded.level,
-        basket=excluded.basket, unlocked=excluded.unlocked, seed_sel=excluded.seed_sel`)
+        basket=excluded.basket, decor=excluded.decor, unlocked=excluded.unlocked, seed_sel=excluded.seed_sel`)
       .run(player, coins, xp, level, JSON.stringify(s.basket||[]),
+           JSON.stringify(s.decor || Array(20).fill(null)),
            unlocked, s.seedSel||'carrot');
     db.prepare('DELETE FROM plots WHERE player_id=?').run(player);
     const ins = db.prepare('INSERT INTO plots (player_id, idx, type, planted_at, watered) VALUES (?,?,?,?,?)');

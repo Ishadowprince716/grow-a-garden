@@ -25,3 +25,13 @@ const WEATHERS = [
   { id:'storm', icon:'⛈️', label:'Storm — small chance crops die' },
 ];
 let weather = WEATHERS[0];
+
+// ===== Decor — coins sink, placed on plot slots =====
+const DECOR = [
+  { id:'lamp',    e:'🏮', name:'Lantern',   cost:40,  lvl:1, color:0xffd27f },
+  { id:'fence',   e:'🪵', name:'Wood Fence',cost:25,  lvl:1, color:0x9a7444 },
+  { id:'path',    e:'🛤️', name:'Gravel Path',cost:20, lvl:2, color:0xb8b0a0 },
+  { id:'scare',   e:'🎃', name:'Scarecrow', cost:60,  lvl:4, color:0x7a4a1f },
+  { id:'flower',  e:'🌸', name:'Flower Bed',cost:50,  lvl:3, color:0xe85a9a },
+];
+const DKEYS = DECOR.map(d => d.id);

@@ -1,6 +1,7 @@
 'use strict';
 // Shared state validation — used by backend and frontend.
 const CROP_KEYS = ['carrot','tomato','corn','pumpkin','strawberry','watermelon','grape','dragon','goldenrose','cactus','star'];
+const DECOR_KEYS = ['lamp','fence','path','scare','flower'];
 
 function validPlot(p) {
   // plot is null (empty) or a well-formed crop entry
@@ -11,6 +12,12 @@ function validPlot(p) {
     && typeof p.watered === 'boolean';
 }
 
+function validDecor(d) {
+  // decor slot: null (empty) or well-formed (per plot index) — TS: string, or null
+  if (d === null) return true;
+  return DECOR_KEYS.includes(d);
+}
+
 function isValidState(s) {
   return !!s
     && typeof s.coins === 'number' && Number.isFinite(s.coins) && s.coins >= 0
@@ -18,6 +25,7 @@ function isValidState(s) {
     && typeof s.level === 'number' && Number.isFinite(s.level) && s.level >= 1 && s.level <= 50
     && Array.isArray(s.basket) && s.basket.every(t => typeof t === 'string')
     && Array.isArray(s.plots) && s.plots.length === 20 && s.plots.every(validPlot)
+    && Array.isArray(s.decor) && s.decor.length === 20 && s.decor.every(validDecor)
     && typeof s.unlocked === 'number' && s.unlocked >= 1 && s.unlocked <= 20
     && typeof s.seedSel === 'string' && CROP_KEYS.includes(s.seedSel);
 }
@@ -25,8 +33,8 @@ function isValidState(s) {
 function defaultState() {
   return {
     coins: 20, xp: 0, level: 1, basket: [],
-    plots: Array(20).fill(null), unlocked: 8, seedSel: 'carrot',
+    plots: Array(20).fill(null), decor: Array(20).fill(null), unlocked: 8, seedSel: 'carrot',
   };
 }
 
-module.exports = { isValidState, defaultState, validPlot };
+module.exports = { isValidState, defaultState, validPlot, validDecor };

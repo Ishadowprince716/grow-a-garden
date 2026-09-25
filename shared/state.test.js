@@ -42,3 +42,16 @@ test('level cap enforced', () => {
   const s = defaultState(); s.level = 999;
   assert.ok(!isValidState(s));
 });
+
+test('valid decor accepted, unknown decor rejected', () => {
+  const s = defaultState();
+  s.decor[0] = 'lamp';
+  assert.ok(isValidState(s));
+  s.decor[0] = 'injected';
+  assert.ok(!isValidState(s));
+});
+
+test('decor length enforced', () => {
+  const s = defaultState(); s.decor = Array(10).fill(null);
+  assert.ok(!isValidState(s));
+});
