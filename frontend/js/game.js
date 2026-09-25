@@ -17,7 +17,7 @@ function growMs(p) {
   let t = CROPS[p.type].grow * 1000;
   if (p.watered) t *= 0.5;
   if (weather.id === 'rain') t *= 0.5;
-  if (weather.id === 'heat' && !p.watered) t *= 1.5;
+  if (weather.id === 'heat' && !p.watered && p.type !== 'cactus') t *= 1.5;
   return t;
 }
 function ready(p) { return Date.now() - p.plantedAt >= growMs(p); }
@@ -148,12 +148,26 @@ document.querySelectorAll('.tool').forEach(btn => {
 document.getElementById('resetBtn').onclick = () => {
   if (confirm('Erase save and start over?')) { API.reset(); location.reload(); }
 };
+const muteBtn = document.getElementById('muteBtn');
+muteBtn.textContent = SFX.muted ? '🔇' : '🔊';
+muteBtn.onclick = () => { muteBtn.textContent = SFX.toggle() ? '🔇' : '🔊'; SFX.click(); };
 
 function save() { API.save(S); }
 
 (async () => {
   const remote = await API.load();
+  const fresh = !remote;
   if (remote && Array.isArray(remote.plots) && remote.plots.length === GRID) S = remote;
+  if (!fresh) {
+    // welcome back: summarize what grew while away
+    const readyNow = S.plots.filter(p => p && ready(p)).length;
+    const growing = S.plots.filter(p => p && !ready(p)).length;
+    const mins = Math.round((Date.now() - (S.lastSeen || Date.now())) / 60000);
+    log(`Welcome back! ${readyNow} crop${readyNow === 1 ? '' : 's'} ready to harvest` +
+        (growing ? `, ${growing} still growing` : '') +
+        (mins > 1 ? `, away ${mins < 60 ? mins + 'm' : Math.round(mins / 60) + 'h'}.` : '.'));
+  }
+  S.lastSeen = Date.now();
   World.init();
   World.enableControls();
   render();

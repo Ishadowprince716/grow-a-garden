@@ -9,6 +9,9 @@ const CROPS = {
   watermelon:{ e:'🍉', name:'Melon',   cost:30, grow:36, sell:95,  xp:6, lvl:5 },
   grape:     { e:'🍇', name:'Grape',   cost:45, grow:48, sell:150, xp:8, lvl:7 },
   dragon:    { e:'🐲', name:'Dragon Fruit', cost:70, grow:70, sell:280, xp:15, lvl:10 },
+  goldenrose:{ e:'🌹', name:'Golden Rose',  cost:90, grow:80, sell:400, xp:20, lvl:12 },
+  cactus:    { e:'🌵', name:'Cactus',       cost:110, grow:90, sell:520, xp:26, lvl:14 },
+  star:      { e:'⭐', name:'Star Fruit',   cost:150, grow:110, sell:800, xp:40, lvl:16 },
 };
 const GRID = 20, COLS = 5, BASE_UNLOCK = 8, PLOT_COST = 50;
 const KEYS = Object.keys(CROPS);
