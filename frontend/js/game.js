@@ -3,7 +3,7 @@
 // Data lives in data.js, sounds in sfx.js, persistence in api.js.
 
 // ===== State =====
-let S = null;
+let S = { coins:20, xp:0, level:1, basket:[], plots:Array(GRID).fill(null), unlocked:8, seedSel:'carrot' };
 let tool = 'hand', logT;
 
 // ===== Helpers =====
