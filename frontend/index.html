@@ -7,29 +7,32 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<h1>Grow-a-Garden Pro</h1>
-<div class="tagline">plant · water · weather · harvest · sell</div>
-<div class="hud">
+<div id="c3dHost" style="position:fixed;inset:0;z-index:0"></div>
+<h1 style="position:relative;z-index:2">Grow-a-Garden Pro 3D</h1>
+<div class="tagline" style="position:relative;z-index:2">plant · water · weather · harvest · sell · drag to orbit · scroll to zoom</div>
+<div class="hud" style="position:relative;z-index:2">
   <span>🪙 <b id="coins">0</b></span>
   <span>⭐ Lv <b id="level">1</b> (<span id="xp">0</span>/<span id="xpNeed">10</span> XP)</span>
   <span id="weather">☀️</span>
   <span>🧺 <b id="basket">0</b></span>
 </div>
-<div id="garden"></div>
-<div class="weather-banner" id="wBanner"></div>
-<div id="toolbar">
+<div id="garden" style="display:none"></div>
+<div class="weather-banner" id="wBanner" style="position:relative;z-index:2"></div>
+<div id="toolbar" style="position:relative;z-index:2">
   <button class="tool" data-tool="hoe">⛏️ Hoe</button>
   <button class="tool" data-tool="seed">🌱 Seed</button>
   <button class="tool" data-tool="water">💧 Water</button>
   <button class="tool active" data-tool="hand">✋ Harvest</button>
 </div>
-<div id="seedMenu"></div>
-<div id="log">Pick seed tool, then a crop.</div>
-<button class="sell" id="sellBtn" disabled>Sell basket</button>
-<button id="resetBtn">reset save</button>
+<div id="seedMenu" style="position:relative;z-index:2"></div>
+<div id="log" style="position:relative;z-index:2">Pick seed tool, then a crop.</div>
+<button class="sell" id="sellBtn" style="position:relative;z-index:2" disabled>Sell basket</button>
+<button id="resetBtn" style="position:relative;z-index:2">reset save</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
 <script src="js/data.js"></script>
 <script src="js/sfx.js"></script>
 <script src="js/api.js"></script>
+<script src="js/world3d.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

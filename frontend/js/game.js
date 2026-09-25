@@ -23,15 +23,12 @@ function growMs(p) {
 function ready(p) { return Date.now() - p.plantedAt >= growMs(p); }
 function growth(p) { return Math.min(1, (Date.now() - p.plantedAt) / growMs(p)); }
 
-// ===== Grid =====
-const garden = document.getElementById('garden');
-const plotEls = [];
-for (let i = 0; i < GRID; i++) {
-  const el = document.createElement('div');
-  el.className = 'plot'; el.dataset.i = i;
-  el.addEventListener('click', () => useTool(i));
-  garden.appendChild(el); plotEls.push(el);
-}
+// ===== Grid (3D — clicks raycast against soil meshes) =====
+addEventListener('click', e => {
+  if (e.target.id !== 'c3d') return;
+  const i = World.pickPlot(e.clientX, e.clientY);
+  if (i !== null) useTool(i);
+});
 
 // ===== XP / Level =====
 function gainXp(n) {
@@ -97,18 +94,17 @@ function rollWeather() {
       const p = S.plots[i];
       if (p && Math.random() < 0.12) {
         S.plots[i] = null; SFX.die();
-        garden.classList.add('shake');
-        setTimeout(() => garden.classList.remove('shake'), 450);
         log('⚡ Lightning destroyed a ' + CROPS[p.type].name + '!');
       }
     }
   }
   document.getElementById('weather').textContent = weather.icon;
+  World.setWeather(weather.id);
   save();
 }
 setInterval(rollWeather, 90000);
 
-// ===== Render =====
+// ===== Render (HUD only — crops/soil live in 3D world) =====
 function render() {
   document.getElementById('coins').textContent = S.coins;
   document.getElementById('level').textContent = S.level;
@@ -117,23 +113,7 @@ function render() {
   document.getElementById('weather').textContent = weather.icon;
   document.getElementById('basket').textContent = S.basket.length;
   document.getElementById('sellBtn').disabled = !S.basket.length;
-  for (let i = 0; i < GRID; i++) {
-    const el = plotEls[i], p = S.plots[i];
-    el.className = 'plot' + (p && p.watered ? ' wet' : '') + (i >= S.unlocked ? ' locked' : '');
-    el.innerHTML = '';
-    if (i < S.unlocked && p) {
-      const pct = growth(p);
-      if (pct >= 1) { el.textContent = CROPS[p.type].e; }
-      else {
-        el.textContent = STAGES[Math.floor(pct * 3)];
-        const t = document.createElement('span');
-        t.className = 'timer';
-        t.textContent = Math.ceil((1 - pct) * growMs(p) / 1000) + 's';
-        el.appendChild(t);
-        if (p.watered) { const r = document.createElement('span'); r.className = 'rare'; r.textContent = '💧'; el.appendChild(r); }
-      }
-    }
-  }
+  World.updateCrops(S);
 }
 
 // ===== Seed menu =====
@@ -174,7 +154,10 @@ function save() { API.save(S); }
 (async () => {
   const remote = await API.load();
   if (remote && Array.isArray(remote.plots) && remote.plots.length === GRID) S = remote;
+  World.init();
+  World.enableControls();
   render();
   buildSeedMenu();
   setInterval(render, 1000);
+  setInterval(() => World.updateCrops(S), 1000);
 })();
