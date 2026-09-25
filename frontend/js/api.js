@@ -16,12 +16,14 @@ const API = (() => {
   return {
     online: !!BASE,
     async load() {
-      if (!BASE) return null;
+      let local = null;
+      try { local = JSON.parse(localStorage.getItem(SKEY)); } catch (e) {}
+      if (!BASE) return local;
       try {
         const r = await fetch('/api/state?player=' + encodeURIComponent(playerId()));
-        if (!r.ok) return null;
-        return await r.json();
-      } catch (e) { return null; }
+        if (r.ok) return await r.json();
+      } catch (e) {}
+      return local;
     },
     async save(state) {
       try { localStorage.setItem(SKEY, JSON.stringify(state)); } catch (e) {}
