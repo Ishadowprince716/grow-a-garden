@@ -36,6 +36,7 @@ const World = (() => {
     ground = grass; // expose to setSeason
 
     buildDecor();
+    buildTractor();
     buildFarmer();
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -94,7 +95,28 @@ const World = (() => {
     }
   }
 
-  // ===== Farmer characters — from spec sheets ED-02/ED-03/ED-04/ED-06 =====
+  // ===== Tractor — low-poly, drives a loop around the farm =====
+  let tractor;
+  function buildTractor() {
+    const g = new THREE.Group();
+    const b = (w, h, d, color, x, y, z) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M(color));
+      m.position.set(x, y, z); m.castShadow = true;
+      m.userData.tractor = true;
+      g.add(m); return m;
+    };
+    b(1.1, .5, 2.2, 0xb0302a, 0, .35, 0);                 // body
+    b(.25, .7, .25, 0x9a2520, -.55, .75, 0);              // engine hood
+    b(.5, .4, .4, 0x7a1a15, .3, .9, .3);                  // rollbar
+    b(.3, .3, .9, 0x2a6a2a, -.1, .62, -.5);               // seat
+    b(.3, .5, .6, 0x222, 0, .55, 1.1);                    // plow arm
+    b(1.6, .1, 1.6, 0x555, 0, .08, 1.9);                  // wide plow blade
+    b(.9, .9, .25, 0x3a3a3a, 0, .35, 0);                  // rear wheel hub
+    b(.3, .9, .1, 0x222, -.9, .35, -.2);                  // front wheel
+    g.position.set(9, .5, -9);
+    scene.add(g);
+    tractor = g;
+  }
   // Low-poly avatars: cap, plaid shirt, denim overalls, gloves, boots.
   let farmers = [];   // { g, legL, legR, armL, armR, target, speed }
   function makeFarmer(o) {
@@ -343,6 +365,13 @@ const World = (() => {
         f.g.position.z = Math.max(-12, Math.min(12, f.g.position.z));
       }
     });
+    // tractor: drive a circle around the farm
+    if (tractor) {
+      const ta = t * .12;                 // slow orbit
+      tractor.position.set(Math.sin(ta) * 12, .5, Math.cos(ta) * 12);
+      tractor.rotation.y = -ta + Math.PI / 2;
+      tractor.position.y = .5 + Math.sin(ta * 2) * .06;   // slight bounce on uneven ground
+    }
     camera.position.set(Math.sin(orbit) * orbitDist, 12, Math.cos(orbit) * orbitDist);
     camera.lookAt(0, 0, 0);
     renderer.render(scene, camera);
