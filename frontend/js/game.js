@@ -122,16 +122,23 @@ function advanceSeason() {
   }
 }
 
-// ===== Weather =====
+// ===== Weather (seeded — spec §WEATHER) =====
+// Deterministic: seed advances on a fixed interval, same seed → same sequence.
+let weatherSeed;
+function mulberry32(a){let s=a>>>0;return function(){s|=0;s=(s+0x6D2B79F5)|0;let t=Math.imul(s^(s>>>15),1|s);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
 function rollWeather() {
   advanceSeason();
-  weather = WEATHERS[Math.floor(Math.random() * WEATHERS.length)];
+  weatherSeed = (weatherSeed + 1) >>> 0;
+  S.weatherSeed = weatherSeed;
+  const rng = mulberry32(weatherSeed);
+  const idx = Math.floor(rng() * WEATHERS.length);
+  weather = WEATHERS[idx];
   document.getElementById('wBanner').textContent = weather.label;
   if (weather.id === 'rain') S.plots.forEach(p => { if (p) p.watered = true; });
   if (weather.id === 'storm') {
     for (let i = 0; i < S.unlocked; i++) {
       const p = S.plots[i];
-      if (p && Math.random() < 0.12) {
+      if (p && rng() < 0.12) {
         S.plots[i] = null; SFX.die();
         log('⚡ Lightning destroyed a ' + CROPS[p.type].name + '!');
       }
@@ -141,7 +148,18 @@ function rollWeather() {
   World.setWeather(weather.id);
   save();
 }
-setInterval(rollWeather, 90000);
+
+// ===== Fixed-step sim loop (spec §SIMULATION LOOP) =====
+// weather tick at 90s sim step, decoupled from render frames via accumulator.
+const WEATHER_STEP = 90000;
+let wAcc = 0;
+function simTick(dtMs) {
+  wAcc += dtMs;
+  if (wAcc >= WEATHER_STEP) {
+    wAcc = Math.min(wAcc - WEATHER_STEP, WEATHER_STEP); // overload guard
+    rollWeather();
+  }
+}
 
 // ===== Render (HUD only — crops/soil live in 3D world) =====
 function render() {
@@ -226,6 +244,7 @@ function save() { API.save(S); }
         (mins > 1 ? `, away ${mins < 60 ? mins + 'm' : Math.round(mins / 60) + 'h'}.` : '.'));
   }
   S.lastSeen = Date.now();
+  weatherSeed = (S.weatherSeed | 0) || Math.floor(Math.random() * 1e9);
   World.init();
   World.enableControls();
   World.setSeason(season);
@@ -234,5 +253,12 @@ function save() { API.save(S); }
   buildSeedMenu();
   setInterval(render, 1000);
   setInterval(() => World.updateCrops(S), 1000);
-  setInterval(advanceSeason, 15000);
+  // fixed-step sim loop: weather progression decoupled from render frames
+  let last = performance.now();
+  (function frame(now) {
+    const dt = Math.min(now - last, 250);   // clamp big gaps; don't spiral
+    last = now;
+    simTick(dt);
+    requestAnimationFrame(frame);
+  })(last);
 })();
