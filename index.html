@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grow-a-Garden Pro</title>
+<style>
+  :root { --bg:#22302a; --panel:#1a2520; --soil:#4a3324; --soil-wet:#35241a;
+    --gold:#e8b84a; --text:#e8e4d8; --muted:#9aa89a; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:Georgia,serif;
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    padding:20px 12px; user-select:none; }
+  h1 { font-size:1.5rem; letter-spacing:.04em; }
+  .tagline { font-style:italic; color:var(--muted); margin-bottom:14px; font-size:.85rem; }
+  .hud { display:flex; gap:20px; flex-wrap:wrap; justify-content:center;
+    background:var(--panel); border-radius:12px; padding:10px 24px; margin-bottom:14px; }
+  .hud b { color:var(--gold); }
+  #garden { display:grid; grid-template-columns:repeat(5,64px); grid-auto-rows:68px;
+    gap:8px; background:var(--panel); padding:16px; border-radius:14px; }
+  .plot { background:var(--soil); border-radius:8px; position:relative; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:30px;
+    transition:background .3s; }
+  .plot:hover { outline:2px solid var(--gold); }
+  .plot.wet { background:var(--soil-wet); }
+  .plot.locked { background:#141c17; cursor:not-allowed; opacity:.55; }
+  .plot.locked::after { content:'\1F512'; position:absolute; font-size:18px; opacity:.6; }
+  .plot .timer { position:absolute; bottom:3px; right:5px; font-size:.6rem;
+    color:var(--gold); font-family:monospace; }
+  .plot .rare { position:absolute; top:2px; left:4px; font-size:.7rem; }
+  #toolbar { margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .tool { background:var(--panel); color:var(--text); border:2px solid transparent;
+    padding:8px 14px; border-radius:8px; cursor:pointer; font-family:Georgia,serif;
+    font-size:.95rem; display:flex; align-items:center; gap:5px; }
+  .tool:hover { border-color:var(--gold); }
+  .tool.active { border-color:var(--gold); background:#2e4034; }
+  .tool .price { color:var(--gold); font-size:.8rem; }
+  #log { margin-top:12px; color:var(--muted); font-size:.85rem; min-height:1.2em; font-style:italic; }
+  button.sell { margin-top:10px; background:var(--gold); color:#2a2416; border:none;
+    padding:10px 24px; border-radius:8px; cursor:pointer; font-family:Georgia,serif;
+    font-size:1rem; font-weight:bold; }
+  button.sell:disabled { opacity:.4; cursor:default; }
+  .weather-banner { font-style:italic; margin-top:8px; color:var(--gold);
+    min-height:1.3em; font-size:.9rem; }
+  #seedMenu { display:none; margin-top:10px; gap:8px; flex-wrap:wrap; justify-content:center; }
+  #seedMenu.show { display:flex; }
+  #seedMenu button { background:var(--panel); color:var(--text); border:2px solid #2e4034;
+    padding:6px 12px; border-radius:8px; cursor:pointer; font-family:Georgia,serif; font-size:.85rem; }
+  #seedMenu button:hover { border-color:var(--gold); }
+  #seedMenu button:disabled { opacity:.35; cursor:default; }
+  #resetBtn { margin-top:16px; background:none; border:none; color:var(--muted);
+    cursor:pointer; font-family:Georgia,serif; font-size:.75rem; text-decoration:underline; }
+  #resetBtn:hover { color:var(--text); }
+  .shake { animation:sh .4s; }
+  @keyframes sh { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)}
+    75%{transform:translateX(6px)} }
+</style>
+</head>
+<body>
+<h1>Grow-a-Garden Pro</h1>
+<div class="tagline">plant · water · weather · harvest · sell</div>
+<div class="hud">
+  <span>🪙 <b id="coins">0</b></span>
+  <span>⭐ Lv <b id="level">1</b> (<span id="xp">0</span>/<span id="xpNeed">10</span> XP)</span>
+  <span id="weather">☀️</span>
+  <span>🧺 <b id="basket">0</b></span>
+</div>
+<div id="garden"></div>
+<div class="weather-banner" id="wBanner"></div>
+<div id="toolbar">
+  <button class="tool" data-tool="hoe">⛏️ Hoe</button>
+  <button class="tool" data-tool="seed">🌱 Seed</button>
+  <button class="tool" data-tool="water">💧 Water</button>
+  <button class="tool active" data-tool="hand">✋ Harvest</button>
+</div>
+<div id="seedMenu"></div>
+<div id="log">Pick seed tool, then a crop.</div>
+<button class="sell" id="sellBtn" disabled>Sell basket</button>
+<button id="resetBtn">reset save</button>
+<script>
+// ===== Data =====
+const CROPS = {
+  carrot:  { e:'🥕', name:'Carrot',  cost:5,  grow:8,  sell:12,  xp:1, lvl:1 },
+  tomato:  { e:'🍅', name:'Tomato',  cost:10, grow:14, sell:26,  xp:2, lvl:1 },
+  corn:    { e:'🌽', name:'Corn',    cost:15, grow:18, sell:40,  xp:3, lvl:2 },
+  pumpkin: { e:'🎃', name:'Pumpkin', cost:18, grow:24, sell:55,  xp:5, lvl:3 },
+  strawberry:{e:'🍓', name:'Berry',   cost:25, grow:20, sell:70,  xp:5, lvl:5 },
+  watermelon:{e:'🍉', name:'Melon',   cost:30, grow:36, sell:95,  xp:6, lvl:5 },
+  grape:   { e:'🍇', name:'Grape',   cost:45, grow:48, sell:150, xp:8, lvl:7 },
+  dragon:  { e:'🐲', name:'Dragon Fruit', cost:70, grow:70, sell:280, xp:15, lvl:10 },
+};
+const GRID = 20, COLS = 5, BASE_UNLOCK = 8, PLOT_COST = 50;
+const KEYS = Object.keys(CROPS);
+const STAGES = ['🌱','🌿','🪴'];
+const SKEY = 'growagarden_pro_v1';
+
+// ===== State =====
+let S = { coins:20, xp:0, level:1, basket:[], plots:Array(GRID).fill(null), unlocked:8, seedSel:'carrot' };
+let tool='hand', logT;
+
+// ===== Weather (random, 60-120s) =====
+const WEATHERS = [
+  { id:'sun',   icon:'☀️', label:'Sunny — normal growth' },
+  { id:'rain',  icon:'🌧️', label:'Raining — auto-water, 2x growth' },
+  { id:'heat',  icon:'🔥', label:'Heat wave — dry fast, needs water' },
+  { id:'storm', icon:'⛈️', label:'Storm — small chance crops die' },
+];
+let weather = WEATHERS[0];
+
+// ===== Save/Load =====
+function save(){ try{ localStorage.setItem(SKEY, JSON.stringify(S)); }catch(e){} }
+function load(){
+  try{
+    const d = JSON.parse(localStorage.getItem(SKEY));
+    if(d && Array.isArray(d.plots) && d.plots.length===GRID){
+      S = d;
+      while(S.plots.length < GRID) S.plots.push(null);
+    }
+  }catch(e){}
+}
+
+// ===== Sound (Web Audio, no files) =====
+let AC=null;
+function beep(freq, dur=0.08, type='sine', vol=0.15){
+  try{
+    const ctx = beep.ctx || (beep.ctx = new (window.AudioContext||window.webkitAudioContext)());
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type='sine'; o.frequency.value=freq;
+    o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+dur);
+    o.start(); o.stop(ctx.currentTime+dur);
+  }catch(e){}
+}
+const SFX = {
+  plant: ()=>beep(520,.06), water:()=>beep(700,.09), harvest:()=>{beep(660,.07);setTimeout(()=>beep(880,.09),70)},
+  sell:  ()=>{beep(660,.08);setTimeout(()=>beep(990,.12),90)},
+  die:   ()=>beep(120,.25), click:()=>beep(300,.04), levelup:()=>{[523,659,784].forEach((f,i)=>setTimeout(()=>beep(f,.12),i*90))},
+};
+
+// ===== Helpers =====
+function log(m){ const el=document.getElementById('log'); el.textContent=m;
+  clearTimeout(logT); logT=setTimeout(()=>el.textContent='…',3000); }
+function plotUnlockCost(){ return PLOT_COST + (S.unlocked-BASE_UNLOCK)*25; }
+function needXp(l){ return 10 + (l-1)*15; }
+function growMs(p){ let t = CROPS[p.type].grow*1000;
+  if(p.watered) t*=0.5;
+  if(weather.id==='rain') t*=0.5;
+  if(weather.id==='heat' && !p.watered) t*=1.5;
+  return t; }
+function ready(p){ return Date.now()-p.plantedAt >= growMs(p); }
+function growth(p){ return Math.min(1,(Date.now()-p.plantedAt)/growMs(p)); }
+
+// ===== Grid =====
+const garden=document.getElementById('garden');
+const plotEls=[];
+for(let i=0;i<GRID;i++){
+  const el=document.createElement('div');
+  el.className='plot'; el.dataset.i=i;
+  el.addEventListener('click',()=>useTool(i));
+  garden.appendChild(el); plotEls.push(el);
+}
+
+// ===== XP / Level =====
+function gainXp(n){
+  S.xp+=n;
+  let leveled=false;
+  while(S.xp >= needXp(S.level)){ S.xp-=needXp(S.level); S.level++; leveled=true; }
+  if(leveled){ SFX.levelup(); log('LEVEL UP! Now level '+S.level); buildSeedMenu(); }
+}
+
+// ===== Sell =====
+document.getElementById('sellBtn').addEventListener('click',()=>{
+  if(!S.basket.length) return;
+  let total=0;
+  S.basket.forEach(t=>{ total+=CROPS[t].sell; gainXp(CROPS[t].xp); });
+  S.coins+=total; S.basket=[]; SFX.sell();
+  log('Sold everything for '+total+' coins!');
+  render(); save();
+});
+
+function gainXp(n){
+  S.xp+=n;
+  let leveled=false;
+  while(S.xp >= needXp(S.level)){ S.xp-=needXp(S.level); S.level++; leveled=true; }
+  if(leveled){ SFX.levelup(); log('LEVEL UP! Now level '+S.level); buildSeedMenu(); }
+}
+
+// ===== Weather =====
+function rollWeather(){
+  weather = WEATHERS[Math.floor(Math.random()*WEATHERS.length)];
+  const b=document.getElementById('wBanner');
+  b.textContent = weather.label;
+  if(weather.id==='rain'){
+    S.plots.forEach(p=>{ if(p) p.watered=true; });
+  }
+  if(weather.id==='storm'){
+    for(let i=0;i<S.unlocked;i++){
+      const p=S.plots[i];
+      if(p && Math.random()<0.12){
+        S.plots[i]=null; SFX.die();
+        garden.classList.add('shake');
+        setTimeout(()=>garden.classList.remove('shake'),450);
+        log('⚡ Lightning destroyed a '+CROPS[p.type].name+'!');
+      }
+    }
+  }
+  document.getElementById('weather').textContent=weather.icon;
+  save();
+}
+setInterval(rollWeather, 90000);
+
+// ===== Render =====
+function render(){
+  document.getElementById('coins').textContent=S.coins;
+  document.getElementById('level').textContent=S.level;
+  document.getElementById('xp').textContent=S.xp;
+  document.getElementById('xpNeed').textContent=needXp(S.level);
+  document.getElementById('weather').textContent=weather.icon;
+  document.getElementById('sellBtn').disabled=!S.basket.length;
+  for(let i=0;i<GRID;i++){
+    const el=plotEls[i], p=S.plots[i];
+    el.className='plot'+(p&&p.watered?' wet':'')+(i>=S.unlocked?' locked':'');
+    el.innerHTML='';
+    if(i<S.unlocked && p){
+      const pct=growth(p);
+      if(pct>=1){ el.textContent=CROPS[p.type].e; }
+      else{
+        el.textContent=STAGES[Math.floor(pct*3)];
+        const t=document.createElement('span');
+        t.className='timer';
+        t.textContent=Math.ceil((1-pct)*growMs(p)/1000)+'s';
+        el.appendChild(t);
+        if(p.watered){ const r=document.createElement('span'); r.className='rare'; r.textContent='💧'; el.appendChild(r); }
+      }
+    }
+  }
+  document.getElementById('coins').textContent=S.coins;
+  document.getElementById('basket').textContent=S.basket.length;
+  document.getElementById('sellBtn').disabled=!S.basket.length;
+}
+
+// ===== Actions =====
+function useTool(i){
+  const p=S.plots[i], now=Date.now();
+  if(i>=S.unlocked){
+    const cost=plotUnlockCost();
+    if(S.coins>=cost){ S.coins-=cost; S.unlocked++; SFX.sell(); log('Plot unlocked!'); }
+    else log('Need '+cost+' coins to unlock.');
+  }
+  else if(tool==='hoe'){ if(S.plots[i]){ S.plots[i]=null; log('Cleared.'); } }
+  else if(tool==='seed'){
+    if(!S.plots[i]){
+      const c=CROPS[S.seedSel];
+      if(S.level < c.lvl) log('Need level '+c.lvl+' for '+c.name+'.');
+      else if(S.coins>=c.cost){ S.coins-=c.cost;
+        S.plots[i]={type:S.seedSel, plantedAt:Date.now(), watered:false};
+        SFX.plant(); log(c.name+' planted (-'+c.cost+' coins).');
+      } else log('Not enough coins.');
+    } else log('Plot busy.');
+  }
+  else if(tool==='water'){
+    if(S.plots[i] && !S.plots[i].watered){ S.plots[i].watered=true; SFX.water(); log('Watered — grows 2x faster.'); }
+    else if(S.plots[i]) log('Already watered.');
+    else log('Nothing to water.');
+  }
+  else if(tool==='hand'){
+    const p=S.plots[i];
+    if(p && ready(p)){
+      S.basket.push(p.type); S.plots[i]=null; SFX.harvest();
+      log(CROPS[p.type].name+' harvested!');
+    } else if(p) log('Not ready yet.');
+    else log('Empty plot.');
+  }
+  render(); save();
+}
+
+// ===== Seed menu =====
+function buildSeedMenu(){
+  const m=document.getElementById('seedMenu'); m.innerHTML='';
+  KEYS.forEach(k=>{
+    const c=CROPS[k];
+    const b=document.createElement('button');
+    b.textContent=c.e+' '+c.name+' ('+c.cost+')';
+    b.disabled = S.level < c.lvl;
+    if(k===S.seedSel) b.style.borderColor='var(--gold)';
+    b.onclick=()=>{ S.seedSel=k; SFX.click(); buildSeedMenu(); };
+    m.appendChild(b);
+  });
+  const row=document.createElement('div');
+  row.className='unlock-row';
+  const lockedCrops=KEYS.filter(k=>CROPS[k].lvl>S.level);
+  row.textContent = lockedCrops.length ? 'Locked seeds unlock at level: '+lockedCrops.map(k=>CROPS[k].lvl).join(', ') : 'All seeds unlocked!';
+  m.appendChild(row);
+}
+
+// ===== Init & tick =====
+document.querySelectorAll('.tool').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tool').forEach(t=>t.classList.remove('active'));
+    btn.classList.add('active'); tool=btn.dataset.tool; SFX.click();
+    log({hoe:'Clear a plot.',seed:'Pick a seed below.',water:'Water a crop (2x speed).',hand:'Harvest ripe crops.'}[tool]);
+  });
+});
+document.getElementById('resetBtn').onclick=()=>{
+  if(confirm('Erase save and start over?')){ localStorage.removeItem(SKEY); location.reload(); }
+};
+load();
+render();
+buildSeedMenu();
+setInterval(render,1000);
+</script>
+</body>
+</html>
