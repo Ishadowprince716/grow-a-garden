@@ -94,29 +94,56 @@ const World = (() => {
     }
   }
 
-  // ===== Farmer NPC — patrols, waves when idle =====
-  let farmer, currentWeather = 'sun';
-  function buildFarmer() {
+  // ===== Farmer characters — from spec sheets ED-02/ED-03/ED-04/ED-06 =====
+  // Low-poly avatars: cap, plaid shirt, denim overalls, gloves, boots.
+  let farmers = [];   // { g, legL, legR, armL, armR, target, speed }
+  function makeFarmer(o) {
     const g = new THREE.Group();
-    g.position.y = .8;
-    // local box: creates mesh + adds to group (world offset = group pos + local)
-    const b = (w, h, d, color, x, y, z) => {
+    const b = (w, h, d, color, x, y, z, parent) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M(color));
       m.position.set(x, y, z); m.castShadow = true;
-      g.add(m); return m;
+      (parent || g).add(m); return m;
     };
-    // body
-    b(.42, .6, .24, 0x2a5c99, 0, .55, 0);
-    // head
-    b(.38, .34, .34, 0xf8d5a0, 0, .95, 0);
-    // arms
-    b(.12, .5, .12, 0x2a5c99, -.3, .5, 0);
-    b(.12, .5, .12, 0x2a5c99, .3, .5, 0);
-    // legs
-    b(.16, .44, .16, 0x1a3a6b, -.14, .25, 0);
-    b(.16, .44, .16, 0x1a3a6b, .14, .25, 0);
+    // overalls (denim bib) + plaid shirt
+    b(.46, .34, .26, 0x4a6fa5, 0, .42, 0);                 // overall waist/legs block
+    b(.3, .22, .1, 0x4a6fa5, 0, .82, .09);                 // bib
+    const shirt = b(.5, .34, .28, o.shirt, 0, .78, 0);     // shirt torso
+    b(.36, .3, .3, 0xf8d5a0, 0, 1.02, 0);                  // head
+    const cap = b(.42, .12, .42, o.cap, 0, 1.16, 0);       // cap crown
+    b(.4, .04, .2, o.cap, 0, 1.08, -.26);                  // brim (front = -z)
+    // arms (pivot at shoulder for swing)
+    const armL = new THREE.Group(); armL.position.set(-.3, 1.02, 0);
+    const armR = new THREE.Group(); armR.position.set(.3, 1.02, 0);
+    b(.11, .48, .11, o.shirt, 0, -.24, 0, armL);
+    b(.11, .48, .11, o.shirt, 0, -.24, 0, armR);
+    b(.11, .12, .11, 0xf8d5a0, 0, -.5, 0, armL);            // hands
+    b(.11, .12, .11, 0xf8d5a0, 0, -.5, 0, armR);
+    // legs (pivot at hip)
+    const legL = new THREE.Group(); legL.position.set(-.13, .4, 0);
+    const legR = new THREE.Group(); legR.position.set(.13, .4, 0);
+    b(.16, .42, .16, 0x4a6fa5, 0, -.21, 0, legL);          // denim leg
+    b(.16, .42, .16, 0x4a6fa5, 0, -.21, 0, legR);
+    b(.18, .12, .26, 0x5a3a26, 0, -.44, .04, legL);        // boots
+    b(.18, .12, .26, 0x5a3a26, 0, -.44, .04, legR);
+    g.position.set(o.x, .8, o.z);
     scene.add(g);
-    farmer = g;
+    // female: ponytail block at back of head
+    if (o.ponytail) b(.14, .55, .12, 0x5a3a1f, 0, 1.02, -.24, g);
+    return { g, legL, legR, armL, armR, target: null, speed: 1.6 + Math.random() * .4 };
+  }
+
+  function buildFarmer() {
+    // spec sheets: male (brown plaid + tan cap), female (red plaid + pink cap, ponytail)
+    farmers.push(makeFarmer({ shirt: 0xb5803f, cap: 0x8a5a33, x: 4, z: -4 }));
+    farmers.push(makeFarmer({ shirt: 0xc23b2e, cap: 0xd98a8a, ponytail: true, x: -4, z: 4 }));
+  }
+
+  // farmer walks to a plot when the player works it
+  function sendFarmer(plotIdx) {
+    if (!farmers.length) return;
+    const gx = (plotIdx % 5) - 2, gz = Math.floor(plotIdx / 5) - 1.5;
+    const f = farmers[Math.floor(Math.random() * farmers.length)];
+    f.target = new THREE.Vector3(gx * TILE + 1.2, .8, gz * TILE + 1.2);
   }
 
   // ===== Crop builders — stage: 0=sprout, 1=growing, 2=ripe =====
@@ -290,23 +317,38 @@ const World = (() => {
       const star = root.children.find(c => c.name === 'starfruit');
       if (star) star.rotation.y += dt * 1.5;
     });
-    // farmer idle wave / rain crouch
-    if (farmer) {
-      if (currentWeather === 'rain' || currentWeather === 'storm') {
-        farmer.position.y = .5;
+    // farmers: walk to target, swing limbs, else idle wander
+    const t = performance.now() / 1000;
+    farmers.forEach(f => {
+      const dest = f.target || f.g.position;
+      const dx = dest.x - f.g.position.x, dz = dest.z - f.g.position.z;
+      const dist = Math.hypot(dx, dz);
+      if (f.target && dist > .15) {
+        f.g.position.x += (dx / dist) * f.speed * dt;
+        f.g.position.z += (dz / dist) * f.speed * dt;
+        f.g.rotation.y = Math.atan2(dx, dz);
+        // walk cycle: legs & arms swing
+        const sw = Math.sin(t * 8) * .6;
+        f.legL.rotation.x = sw; f.legR.rotation.x = -sw;
+        f.armL.rotation.x = -sw * .7; f.armR.rotation.x = sw * .7;
       } else {
-        farmer.position.y = .8;
+        f.target = null;
+        f.legL.rotation.x = f.legR.rotation.x = 0;
+        f.armL.rotation.x = f.armR.rotation.x = Math.sin(t * 2 + f.speed) * .15; // idle sway
+        if (!f.target) { // gentle wander when idle
+          f.g.position.x += Math.sin(t * .13 + f.g.position.z) * dt * .4;
+          f.g.position.z += Math.cos(t * .11 + f.g.position.x) * dt * .3;
+        }
+        f.g.position.x = Math.max(-14, Math.min(14, f.g.position.x));
+        f.g.position.z = Math.max(-12, Math.min(12, f.g.position.z));
       }
-      farmer.position.x = Math.sin(performance.now() * .2) * 2;
-      farmer.position.z = -3 + Math.cos(performance.now() * .13) * 1.4;
-    }
+    });
     camera.position.set(Math.sin(orbit) * orbitDist, 12, Math.cos(orbit) * orbitDist);
     camera.lookAt(0, 0, 0);
     renderer.render(scene, camera);
   }
 
   function setWeather(id) {
-    currentWeather = id;
     const sky = { sun: 0x9fd4e8, rain: 0x7a8fa0, heat: 0xe8c07a, storm: 0x4a5568 }[id] || 0x9fd4e8;
     scene.background.set(sky);
     scene.fog.color.set(sky);
@@ -329,5 +371,5 @@ const World = (() => {
     scene.background.setHSL(.55, .45, .2 + day * .45);
   }
 
-  return { init, enableControls, updateCrops, setWeather, setSeason, pickPlot };
+  return { init, enableControls, updateCrops, setWeather, setSeason, pickPlot, sendFarmer };
 })();

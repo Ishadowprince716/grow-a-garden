@@ -78,6 +78,7 @@ function useTool(i) {
     } else if (p) log('Not ready yet.');
     else log('Empty plot.');
   }
+  World.sendFarmer(i);   // farmer characters walk over to the plot you work
   render(); save();
 }
 
