@@ -155,8 +155,9 @@ const World = (() => {
 
   // ===== Public API =====
   function updateCrops(state) {
+    const st = state || S;
     for (let i = 0; i < GRID; i++) {
-      const p = S.plots[i], root = cropRoots[i];
+      const p = st.plots[i], root = cropRoots[i];
       const key = p ? p.type + (ready(p) ? '-r' : '-g') : '';
       if (root.dataset.key !== key) {
         root.clear();
@@ -164,7 +165,7 @@ const World = (() => {
         if (p && p.type) root.add(CROP_BUILDERS[p.type](ready(p)));
       }
       const soil = soilMeshes[i];
-      const locked = i >= S.unlocked;
+      const locked = i >= st.unlocked;
       soil.material.color.setHex(locked ? 0x3a4a3e : (p && p.watered ? 0x4a3120 : 0x6b4a2f));
     }
   }

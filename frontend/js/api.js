@@ -6,7 +6,7 @@
 const API = (() => {
   const SKEY = 'growagarden_pro_v1';
   const playerId = () => {
-    let id = localStorage.getItem('growagarden_player');
+    let id = localStorage.getItem('gg_player');
     if (!id) { id = 'player-' + Math.random().toString(36).slice(2, 8); localStorage.setItem('gg_player', id); }
     return id;
   };
@@ -34,6 +34,10 @@ const API = (() => {
         });
       } catch (e) { /* offline-tolerant */ }
     },
-    reset() { try { localStorage.removeItem('growagarden_pro_v1'); } catch (e) {} },
+    async reset() {
+      try { localStorage.removeItem(SKEY); } catch (e) {}
+      if (!BASE) return;
+      try { await fetch(BASE + '/api/state?player=' + encodeURIComponent(playerId()), { method: 'DELETE' }); } catch (e) {}
+    },
   };
 })();

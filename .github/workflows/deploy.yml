@@ -3,6 +3,8 @@ name: CI + Pages
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -22,9 +24,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
       - name: Shared tests
         run: node --test shared/state.test.js
-      - name: Syntax-check all JS
+      - name: Syntax-check all JS with Node
         run: |
           for f in frontend/js/*.js shared/*.js backend/server.js; do
             node --check "$f"
@@ -32,7 +36,7 @@ jobs:
 
   deploy-pages:
     needs: test
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     permissions:
       pages: write
       id-token: write

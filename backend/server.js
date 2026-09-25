@@ -97,6 +97,17 @@ const server = http.createServer((req, res) => {
 
   if (url.pathname === '/api/health') return sendJson(res, 200, { ok: true, db: !!db });
 
+  if (url.pathname === '/api/state' && req.method === 'DELETE') {
+    if (!db) return sendJson(res, 503, { ok: false, error: 'db off' });
+    const player = url.searchParams.get('player') || 'anonymous';
+    const tx = db.transaction(() => {
+      db.prepare('DELETE FROM plots WHERE player_id=?').run(player);
+      db.prepare('DELETE FROM players WHERE id=?').run(player);
+    });
+    tx();
+    return sendJson(res, 200, { ok: true });
+  }
+
   if (url.pathname === '/api/state') {
     const player = url.searchParams.get('player') || 'anonymous';
     if (req.method === 'GET') {
