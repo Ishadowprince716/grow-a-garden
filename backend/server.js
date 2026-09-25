@@ -11,7 +11,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { isValidState, defaultState } = require('../shared/state.js');
+const { isValidState, defaultState, unwrapSave, STATE_VERSION } = require('../shared/state.js');
 
 const PORT = process.env.PORT || 3000;
 const DB_DIR = path.join(__dirname, '..', 'database');
@@ -191,7 +191,12 @@ const server = http.createServer((req, res) => {
       req.on('data', c => { body += c; if (body.length > 1e6) req.destroy(); });
       req.on('end', () => {
         try {
-          const state = JSON.parse(body);
+          const parsed = JSON.parse(body);
+          // enforce save envelope: verify checksum + version, unwrap to plain state
+          const u = unwrapSave(parsed);
+          if (!u.ok) throw new Error('bad save: ' + (u.error || 'invalid'));
+          const state = u.state;
+          if (u.v > STATE_VERSION) throw new Error('save from newer version');
           if (!isValidState(state)) throw new Error('invalid state');
           saveState(player, state);
           sendJson(res, 200, { ok: true });
