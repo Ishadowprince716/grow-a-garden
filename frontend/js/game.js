@@ -85,8 +85,10 @@ function useTool(i) {
   else if (tool === 'hand') {
     const p = S.plots[i];
     if (p && ready(p)) {
-      S.basket.push(p.type); S.plots[i] = null; SFX.harvest();
-      log(CROPS[p.type].name + ' harvested!');
+      const c = CROPS[p.type];
+      for (let k = 0; k < (c.yield || 1); k++) S.basket.push(p.type);
+      S.plots[i] = null; SFX.harvest();
+      log(c.name + ' harvested (x' + (c.yield || 1) + ')!');
       Metrics.track('harvest');
     } else if (p) log('Not ready yet.');
     else log('Empty plot.');

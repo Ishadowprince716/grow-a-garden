@@ -332,10 +332,11 @@ const World = (() => {
 
   // ===== Public API =====
   function growthStage(p) {
-    // 0 = sprout, 1 = growing, 2 = ripe/harvest
+    // stage index = number of crop.stages thresholds passed; -0..2 visuals
     if (!ready(p)) {
       const pct = growth(p);
-      return pct < .4 ? 0 : 1;
+      const st = (CROPS[p.type] && CROPS[p.type].stages) || [.4, .75];
+      return pct < st[0] ? 0 : (pct < st[1] ? 1 : 2);
     }
     return 2;
   }
