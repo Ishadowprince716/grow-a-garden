@@ -276,6 +276,14 @@ const World = (() => {
     sun.intensity = id === 'sun' ? 1.2 : id === 'heat' ? 1.5 : .6;
   }
 
+  function setSeason(id) {
+    season = id;
+    const tint = { spring: 0x98fb98, summer: 0x6fbf5f, fall: 0xcfae5f, winter: 0xf0f8ff }[id] || 0x6fbf5f;
+    if (ground) ground.material.color.setHex(tint);
+    const seasonSun = { spring: 1.0, summer: 1.2, fall: .9, winter: .7 }[id] || 1.0;
+    sun.intensity = seasonSun;
+  }
+
   function setTime(t) {
     const a = t * Math.PI * 2 - Math.PI / 2;
     sun.position.set(Math.cos(a) * 25, Math.sin(a) * 25 + 2, 8);
@@ -284,5 +292,5 @@ const World = (() => {
     scene.background.setHSL(.55, .45, .2 + day * .45);
   }
 
-  return { init, enableControls, updateCrops, setWeather, pickPlot };
+  return { init, enableControls, updateCrops, setWeather, setSeason, pickPlot };
 })();

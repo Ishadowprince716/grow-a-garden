@@ -5,6 +5,9 @@
 // ===== State =====
 let S = { coins:20, xp:0, level:1, basket:[], plots:Array(GRID).fill(null), unlocked:8, seedSel:'carrot' };
 let tool = 'hand', logT;
+let season = 'summer';
+const SEASON_MS = 10 * 60 * 1000; // 10 min real-time = 1 season
+const SEASONS = ['spring', 'summer', 'fall', 'winter'];
 
 // ===== Helpers =====
 function log(m) {
@@ -18,6 +21,10 @@ function growMs(p) {
   if (p.watered) t *= 0.5;
   if (weather.id === 'rain') t *= 0.5;
   if (weather.id === 'heat' && !p.watered && p.type !== 'cactus') t *= 1.5;
+  // season affects growth speed
+  if (season === 'winter') t *= 1.4;   // cold slows growth
+  if (season === 'summer') t *= 0.85;  // warm speeds growth
+  if (season === 'spring' && weather.id === 'rain') t *= 0.7; // rainy spring bonus
   return t;
 }
 function ready(p) { return Date.now() - p.plantedAt >= growMs(p); }
@@ -84,8 +91,25 @@ document.getElementById('sellBtn').addEventListener('click', () => {
   render(); save();
 });
 
+// ===== Season cycle =====
+let lastSeasonTick = S.lastSeason || Date.now();
+function advanceSeason() {
+  const now = Date.now();
+  if (now - lastSeasonTick >= SEASON_MS) {
+    lastSeasonTick = now;
+    const curIdx = SEASONS.indexOf(season);
+    season = SEASONS[(curIdx + 1) % SEASONS.length];
+    document.getElementById('season').textContent = season;
+    World.setSeason(season);
+    log('🍂 Season changed to ' + season + '!');
+    S.lastSeason = lastSeasonTick;
+    save();
+  }
+}
+
 // ===== Weather =====
 function rollWeather() {
+  advanceSeason();
   weather = WEATHERS[Math.floor(Math.random() * WEATHERS.length)];
   document.getElementById('wBanner').textContent = weather.label;
   if (weather.id === 'rain') S.plots.forEach(p => { if (p) p.watered = true; });
@@ -170,8 +194,11 @@ function save() { API.save(S); }
   S.lastSeen = Date.now();
   World.init();
   World.enableControls();
+  World.setSeason(season);
+  document.getElementById('season').textContent = season;
   render();
   buildSeedMenu();
   setInterval(render, 1000);
   setInterval(() => World.updateCrops(S), 1000);
+  setInterval(advanceSeason, 15000);
 })();
