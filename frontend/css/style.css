@@ -1,0 +1,49 @@
+  :root { --bg:#22302a; --panel:#1a2520; --soil:#4a3324; --soil-wet:#35241a;
+    --gold:#e8b84a; --text:#e8e4d8; --muted:#9aa89a; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:Georgia,serif;
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    padding:20px 12px; user-select:none; }
+  h1 { font-size:1.5rem; letter-spacing:.04em; }
+  .tagline { font-style:italic; color:var(--muted); margin-bottom:14px; font-size:.85rem; }
+  .hud { display:flex; gap:20px; flex-wrap:wrap; justify-content:center;
+    background:var(--panel); border-radius:12px; padding:10px 24px; margin-bottom:14px; }
+  .hud b { color:var(--gold); }
+  #garden { display:grid; grid-template-columns:repeat(5,64px); grid-auto-rows:68px;
+    gap:8px; background:var(--panel); padding:16px; border-radius:14px; }
+  .plot { background:var(--soil); border-radius:8px; position:relative; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:30px;
+    transition:background .3s; }
+  .plot:hover { outline:2px solid var(--gold); }
+  .plot.wet { background:var(--soil-wet); }
+  .plot.locked { background:#141c17; cursor:not-allowed; opacity:.55; }
+  .plot.locked::after { content:'\1F512'; position:absolute; font-size:18px; opacity:.6; }
+  .plot .timer { position:absolute; bottom:3px; right:5px; font-size:.6rem;
+    color:var(--gold); font-family:monospace; }
+  .plot .rare { position:absolute; top:2px; left:4px; font-size:.7rem; }
+  #toolbar { margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .tool { background:var(--panel); color:var(--text); border:2px solid transparent;
+    padding:8px 14px; border-radius:8px; cursor:pointer; font-family:Georgia,serif;
+    font-size:.95rem; display:flex; align-items:center; gap:5px; }
+  .tool:hover { border-color:var(--gold); }
+  .tool.active { border-color:var(--gold); background:#2e4034; }
+  .tool .price { color:var(--gold); font-size:.8rem; }
+  #log { margin-top:12px; color:var(--muted); font-size:.85rem; min-height:1.2em; font-style:italic; }
+  button.sell { margin-top:10px; background:var(--gold); color:#2a2416; border:none;
+    padding:10px 24px; border-radius:8px; cursor:pointer; font-family:Georgia,serif;
+    font-size:1rem; font-weight:bold; }
+  button.sell:disabled { opacity:.4; cursor:default; }
+  .weather-banner { font-style:italic; margin-top:8px; color:var(--gold);
+    min-height:1.3em; font-size:.9rem; }
+  #seedMenu { display:none; margin-top:10px; gap:8px; flex-wrap:wrap; justify-content:center; }
+  #seedMenu.show { display:flex; }
+  #seedMenu button { background:var(--panel); color:var(--text); border:2px solid #2e4034;
+    padding:6px 12px; border-radius:8px; cursor:pointer; font-family:Georgia,serif; font-size:.85rem; }
+  #seedMenu button:hover { border-color:var(--gold); }
+  #seedMenu button:disabled { opacity:.35; cursor:default; }
+  #resetBtn { margin-top:16px; background:none; border:none; color:var(--muted);
+    cursor:pointer; font-family:Georgia,serif; font-size:.75rem; text-decoration:underline; }
+  #resetBtn:hover { color:var(--text); }
+  .shake { animation:sh .4s; }
+  @keyframes sh { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)}
+    75%{transform:translateX(6px)} }

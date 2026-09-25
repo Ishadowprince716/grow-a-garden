@@ -1,12 +1,54 @@
 # 🌱 Grow-a-Garden Pro
 
-A cozy browser farming game. Single-file HTML — no build step, no dependencies, no server.
+Cozy browser farming game. Professional layout: frontend / backend / database / shared — all wired together.
+
+## Structure
+
+```
+grow-a-garden/
+├── frontend/            # Presentation layer (GitHub Pages deploy root)
+│   ├── index.html       # markup — HUD, garden grid, toolbar
+│   ├── css/style.css    # all styles
+│   └── js/
+│       ├── data.js      # crops, weather, constants
+│       ├── sfx.js       # Web Audio synthesized sounds
+│       ├── api.js       # backend client (localStorage fallback)
+│       └── game.js      # state, actions, weather, render loop
+├── backend/             # Node.js API server
+│   ├── server.js        # plain-http API + static file server
+│   └── package.json     # better-sqlite3
+├── database/            # SQLite persistence
+│   ├── schema.sql       # source-of-truth schema (players, plots)
+│   └── garden.db        # created at runtime by backend
+├── shared/              # code used by both sides
+│   ├── state.js         # state shape + validator
+│   └── state.test.js    # node:test suite
+└── .github/workflows/   # CI: tests + Pages deploy
+```
+
+## How the layers connect
+
+- **frontend → backend**: `js/api.js` GETs/POSTs game state at `/api/state?player=<id>`. When the backend serves the page over http, every save syncs to the server; the localStorage mirror always stays as offline fallback.
+- **backend → database**: `backend/server.js` auto-creates `database/garden.db` (schema: `players`, `plots`) via better-sqlite3.
+- **No backend? Still playable.** On GitHub Pages the API client detects there is no backend and the game runs fully on localStorage — zero behavior change.
 
 ## Play
 
 **[Play live on GitHub Pages →](https://ishadowprince716.github.io/grow-a-garden/)**
 
-Or open `index.html` directly in any browser.
+**Full stack locally:**
+
+```bash
+cd backend
+npm install
+npm start          # -> http://localhost:3000 (serves frontend + API)
+```
+
+**Tests:**
+
+```bash
+node --test shared/state.test.js
+```
 
 ## Features
 
@@ -17,8 +59,7 @@ Or open `index.html` directly in any browser.
 - **XP & levels** — sell crops to gain XP, unlock better seeds
 - **Offline growth** — crops keep growing while you're away (timestamp-based)
 - **Sound effects** — synthesized with Web Audio API, zero asset files
-- **Save/Load** — automatic, via `localStorage`
-- **Reset** — "reset save" link at the bottom
+- **Save/Load** — automatic: localStorage always + server sync when backend is running
 
 ## Gameplay loop
 
@@ -30,14 +71,9 @@ Or open `index.html` directly in any browser.
 
 ## Tech
 
-- One self-contained `index.html` (~13 KB)
 - Vanilla JS, CSS grid, Web Audio API, localStorage
-- No build step, no frameworks, no external requests
-
-## Deploy history
-
-- Local file: double-click `index.html`
-- GitHub Pages: this repo (Settings → Pages → main branch / root)
+- Backend: plain Node http, better-sqlite3
+- No build step, no frameworks
 
 ## License
 
