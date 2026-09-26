@@ -171,9 +171,16 @@ function render() {
   document.getElementById('level').textContent = S.level;
   document.getElementById('xp').textContent = S.xp;
   document.getElementById('xpNeed').textContent = needXp(S.level);
+  const fill = document.getElementById('xpFill');
+  if (fill) fill.style.width = Math.min(100, (S.xp / needXp(S.level)) * 100) + '%';
   document.getElementById('weather').textContent = weather.icon;
   document.getElementById('basket').textContent = S.basket.length;
-  document.getElementById('sellBtn').disabled = !S.basket.length;
+  const sellBtn = document.getElementById('sellBtn');
+  const value = S.basket.reduce((t, k) => t + (CROPS[k] ? CROPS[k].sell : 0), 0);
+  sellBtn.disabled = !S.basket.length;
+  const lbl = sellBtn.querySelector('span');
+  sellBtn.textContent = ''; sellBtn.appendChild(lbl);
+  sellBtn.insertAdjacentText('beforeend', S.basket.length ? ' Sell ' + value + ' 🪙' : ' Sell');
   World.updateCrops(S);
 }
 
@@ -183,9 +190,11 @@ function buildSeedMenu() {
   KEYS.forEach(k => {
     const c = CROPS[k];
     const b = document.createElement('button');
-    b.textContent = c.e + ' ' + c.name + ' (' + c.cost + ')';
+    b.className = 'pick' + (k === S.seedSel ? ' selected' : '');
     b.disabled = S.level < c.lvl;
-    if (k === S.seedSel) b.style.borderColor = 'var(--gold)';
+    b.innerHTML = '<span class="pick-emoji">' + c.e + '</span>'
+      + '<span class="pick-name">' + c.name + '</span>'
+      + '<span class="pick-cost">🪙' + c.cost + '</span>';
     b.onclick = () => { S.seedSel = k; SFX.click(); buildSeedMenu(); };
     m.appendChild(b);
   });
@@ -193,7 +202,7 @@ function buildSeedMenu() {
   row.className = 'unlock-row';
   const lockedCrops = KEYS.filter(k => CROPS[k].lvl > S.level);
   row.textContent = lockedCrops.length
-    ? 'Locked seeds unlock at level: ' + lockedCrops.map(k => CROPS[k].lvl).join(', ')
+    ? '🔒 Next unlocks at level ' + Math.min(...lockedCrops.map(k => CROPS[k].lvl))
     : 'All seeds unlocked!';
   m.appendChild(row);
 }
@@ -204,9 +213,11 @@ function buildDecorMenu() {
   DKEYS.forEach(k => {
     const d = DECOR.find(x => x.id === k);
     const b = document.createElement('button');
-    b.textContent = d.e + ' ' + d.name + ' (' + d.cost + ')';
+    b.className = 'pick' + (k === dSel ? ' selected' : '');
     b.disabled = S.level < d.lvl;
-    if (k === dSel) b.style.borderColor = 'var(--gold)';
+    b.innerHTML = '<span class="pick-emoji">' + d.e + '</span>'
+      + '<span class="pick-name">' + d.name + '</span>'
+      + '<span class="pick-cost">🪙' + d.cost + '</span>';
     b.onclick = () => { dSel = k; SFX.click(); buildDecorMenu(); };
     m.appendChild(b);
   });
