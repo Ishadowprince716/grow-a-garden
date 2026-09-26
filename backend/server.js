@@ -50,6 +50,7 @@ function initDb() {
         decor TEXT NOT NULL DEFAULT '[]',
         unlocked INTEGER NOT NULL DEFAULT 8,
         seed_sel TEXT NOT NULL DEFAULT 'carrot',
+        ledger TEXT NOT NULL DEFAULT '[]',
         updated_at TEXT
       );
       CREATE TABLE IF NOT EXISTS plots (
@@ -70,6 +71,9 @@ function initDb() {
     // migrate: add decor column if missing (older DBs)
     try { db.prepare('SELECT decor FROM players LIMIT 1').get(); }
     catch (e) { db.exec("ALTER TABLE players ADD COLUMN decor TEXT NOT NULL DEFAULT '[]'"); }
+    // migrate: add ledger column if missing
+    try { db.prepare('SELECT ledger FROM players LIMIT 1').get(); }
+    catch (e) { db.exec("ALTER TABLE players ADD COLUMN ledger TEXT NOT NULL DEFAULT '[]'"); }
     console.log('[db] ready');
   } catch (e) {
     console.error('[db] disabled — run `npm install` in backend/ to enable:', e.message);
@@ -91,26 +95,39 @@ function loadState(player) {
   let decor;
   try { decor = JSON.parse(row.decor || '[]'); } catch (e) { decor = Array(20).fill(null); }
   if (!Array.isArray(decor) || decor.length !== 20) decor = Array(20).fill(null);
+  // ledger: derive coins from it (server-authoritative). Missing/old row → seed from coins col.
+  let ledger;
+  try { ledger = JSON.parse(row.ledger || '[]'); } catch (e) { ledger = null; }
+  let coins;
+  if (Array.isArray(ledger) && ledger.length) {
+    coins = ledger.reduce((b, t) => b + (t.a | 0), 0);
+  } else {
+    coins = row.coins;                      // legacy row: treat coins col as balance
+    ledger = coins > 0 ? [{ i: 0, a: coins, r: 'opening', t: Date.now() }] : [];
+  }
   return {
-    coins: row.coins, xp: row.xp, level: row.level,
+    coins, xp: row.xp, level: row.level, ledger,
     basket: JSON.parse(row.basket), plots, decor, unlocked: row.unlocked, seedSel: row.seed_sel,
   };
 }
 
 function saveState(player, s) {
-  // clamp extreme values before they hit INTEGER columns / unbounded growth
-  const coins = Math.min(Math.max(0, s.coins | 0), 1e9);
+  // coins are NOT trusted from the client for storage: server derives from ledger.
+  // ledger is the source of truth (spec §ECONOMY: never let client set balances directly).
+  let ledger;
+  try { ledger = Array.isArray(s.ledger) ? s.ledger : []; } catch (e) { ledger = []; }
+  const coins = ledger.reduce((b, t) => b + Math.trunc(t.a || 0), 0);   // derived, never stored client value
   const xp = Math.min(Math.max(0, s.xp | 0), 1e9);
   const level = Math.min(Math.max(1, s.level | 0), 50);
   const unlocked = Math.min(Math.max(1, s.unlocked | 0), 20);
   const tx = db.transaction(() => {
-    db.prepare(`INSERT INTO players (id, coins, xp, level, basket, decor, unlocked, seed_sel, updated_at)
-      VALUES (?,?,?,?,?,?,?,?,datetime('now'))
+    db.prepare(`INSERT INTO players (id, coins, xp, level, basket, decor, unlocked, seed_sel, ledger, updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,datetime('now'))
       ON CONFLICT(id) DO UPDATE SET coins=excluded.coins, xp=excluded.xp, level=excluded.level,
-        basket=excluded.basket, decor=excluded.decor, unlocked=excluded.unlocked, seed_sel=excluded.seed_sel`)
+        basket=excluded.basket, decor=excluded.decor, unlocked=excluded.unlocked, seed_sel=excluded.seed_sel, ledger=excluded.ledger`)
       .run(player, coins, xp, level, JSON.stringify(s.basket||[]),
            JSON.stringify(s.decor || Array(20).fill(null)),
-           unlocked, s.seedSel||'carrot');
+           unlocked, s.seedSel||'carrot', JSON.stringify(ledger));
     db.prepare('DELETE FROM plots WHERE player_id=?').run(player);
     const ins = db.prepare('INSERT INTO plots (player_id, idx, type, planted_at, watered) VALUES (?,?,?,?,?)');
     (s.plots || []).forEach((p, i) => {

@@ -10,7 +10,7 @@
 
 const API = (() => {
   const SKEY = 'growagarden_pro_v1';
-  const VERSION = 1;
+  const VERSION = 2;
   const playerId = () => {
     let id = localStorage.getItem('gg_player');
     if (!id) { id = 'player-' + Math.random().toString(36).slice(2, 8); localStorage.setItem('gg_player', id); }
@@ -37,9 +37,22 @@ const API = (() => {
     && s.coins >= 0 && Array.isArray(s.plots) && s.plots.length === 20;
   const unwrap = (raw) => {
     if (!raw || typeof raw !== 'object') return null;
-    if (raw.v === undefined) return looksValid(raw) ? raw : null;      // legacy
-    if (raw.sum === checksum(raw.s) && looksValid(raw.s)) return raw.s;
-    return null;                                                        // corrupt
+    if (raw.v === undefined && !raw.sum) {           // legacy bare state
+      if (!looksValid(raw)) return null;
+      // seed ledger from coins if missing (pre-v2 save migration)
+      if (raw.ledger === undefined) raw.ledger = openLedger(raw.coins);
+      return raw;
+    }
+    if (raw.sum === checksum(raw.s) && looksValid(raw.s)) {
+      // v<2 → no ledger: seed from coins
+      if ((raw.v || 0) < 2 && raw.s.ledger === undefined) raw.s.ledger = openLedger(raw.s.coins);
+      return raw.s;
+    }
+    return null;                                    // corrupt
+  };
+  const openLedger = (coins) => {
+    const c = Math.max(0, Math.trunc(coins) || 0);
+    return c > 0 ? [{ i: 0, a: c, r: 'opening', t: Date.now() }] : [];
   };
 
   return {

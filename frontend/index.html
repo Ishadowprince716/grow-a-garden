@@ -7,31 +7,56 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="c3dHost" style="position:fixed;inset:0;z-index:0"></div>
-<h1 style="position:relative;z-index:2">Grow-a-Garden Pro 3D</h1>
-<div class="tagline" style="position:relative;z-index:2">plant · water · weather · harvest · sell · drag to orbit · scroll to zoom</div>
-<div class="hud" style="position:relative;z-index:2">
-  <span>🪙 <b id="coins">0</b></span>
-  <span>⭐ Lv <b id="level">1</b> (<span id="xp">0</span>/<span id="xpNeed">10</span> XP)</span>
-  <span id="weather">☀️</span>
-  <span>🍃 <b id="season">summer</b></span>
-  <span>🧺 <b id="basket">0</b></span>
+<!-- 3D farm backdrop -->
+<div id="c3dHost" aria-hidden="true"></div>
+
+<!-- Top bar -->
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">🌱</span>
+    <div class="brand-txt">
+      <h1>Grow-a-Garden</h1>
+      <span class="tagline">plant · water · weather · harvest · sell</span>
+    </div>
+  </div>
+  <div class="hud">
+    <div class="stat" title="Coins"><span class="ico">🪙</span><b id="coins">0</b></div>
+    <div class="stat" title="Level & XP"><span class="ico">⭐</span>
+      <div class="lv"><b id="level">1</b><span class="xp"><span id="xp">0</span>/<span id="xpNeed">10</span></span></div>
+    </div>
+    <div class="stat" title="Weather"><span class="ico" id="weather">☀️</span></div>
+    <div class="stat" title="Season"><span class="ico">🍃</span><b id="season">summer</b></div>
+    <div class="stat" title="Harvest basket"><span class="ico">🧺</span><b id="basket">0</b></div>
+    <div class="stat actions">
+      <button id="sellBtn" class="sell" disabled><span>💰</span> Sell</button>
+    </div>
+  </div>
+</header>
+
+<!-- Weather banner toast -->
+<div class="weather-banner" id="wBanner" role="status"></div>
+
+<!-- Tool dock -->
+<nav class="dock" aria-label="tools">
+  <button class="tool" data-tool="hoe" title="Clear a plot">⛏️<span>Hoe</span></button>
+  <button class="tool" data-tool="seed" title="Plant a seed">🌱<span>Seed</span></button>
+  <button class="tool" data-tool="water" title="Water a crop">💧<span>Water</span></button>
+  <button class="tool" data-tool="hand" title="Harvest ripe crops">✋<span>Harvest</span></button>
+  <button class="tool" data-tool="decor" title="Place decor">🎨<span>Decor</span></button>
+</nav>
+
+<!-- Dynamic pickers -->
+<div id="seedMenu" class="menu" aria-label="crops"></div>
+<div id="decorMenu" class="menu" aria-label="decor"></div>
+
+<!-- Toast log -->
+<div id="log" role="status" aria-live="polite"></div>
+
+<div class="foot-util">
+  <button id="muteBtn" title="Toggle sound">🔊</button>
+  <button id="resetBtn" title="Erase save and start over">reset save</button>
 </div>
-<div id="garden" style="display:none"></div>
-<div class="weather-banner" id="wBanner" style="position:relative;z-index:2"></div>
-<div id="toolbar" style="position:relative;z-index:2">
-  <button class="tool" data-tool="hoe">⛏️ Hoe</button>
-  <button class="tool" data-tool="seed">🌱 Seed</button>
-  <button class="tool" data-tool="water">💧 Water</button>
-  <button class="tool" data-tool="hand">✋ Harvest</button>
-  <button class="tool" data-tool="decor">🎨 Decor</button>
-</div>
-<div id="seedMenu" style="position:relative;z-index:2"></div>
-<div id="decorMenu" style="position:relative;z-index:2"></div>
-<div id="log" style="position:relative;z-index:2">Pick seed tool, then a crop.</div>
-<button class="sell" id="sellBtn" style="position:relative;z-index:2" disabled>Sell basket</button>
-<button id="resetBtn" style="position:relative;z-index:2">reset save</button>
-<button id="muteBtn" style="position:relative;z-index:2">🔊</button>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
 <script src="js/data.js"></script>
 <script src="js/sfx.js"></script>

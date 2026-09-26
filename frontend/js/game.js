@@ -4,7 +4,7 @@
 
 // ===== State =====
 let S = { coins:20, xp:0, level:1, basket:[], plots:Array(GRID).fill(null), decor:Array(GRID).fill(null), unlocked:8, seedSel:'carrot' };
-let tool = 'hand', logT, dSel = 'lamp';
+let tool = 'hand', logT, dSel = 'lamp', wBannerT;
 let season = 'summer';
 const SEASON_MS = 10 * 60 * 1000; // 10 min real-time = 1 season
 const SEASONS = ['spring', 'summer', 'fall', 'winter'];
@@ -136,6 +136,8 @@ function rollWeather() {
   const idx = Math.floor(rng() * WEATHERS.length);
   weather = WEATHERS[idx];
   document.getElementById('wBanner').textContent = weather.label;
+  document.getElementById('wBanner').classList.add('show');
+  clearTimeout(wBannerT); wBannerT = setTimeout(() => document.getElementById('wBanner').classList.remove('show'), 5000);
   if (weather.id === 'rain') S.plots.forEach(p => { if (p) p.watered = true; });
   if (weather.id === 'storm') {
     for (let i = 0; i < S.unlocked; i++) {
@@ -216,8 +218,10 @@ document.querySelectorAll('.tool').forEach(btn => {
     document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
     btn.classList.add('active'); tool = btn.dataset.tool; SFX.click();
     log({ hoe: 'Clear a plot.', seed: 'Pick a seed below.', water: 'Water a crop (2x speed).', hand: 'Harvest ripe crops.', decor: 'Pick decor, then place on an empty plot.' }[tool]);
-    if (tool === 'decor') buildDecorMenu();
-    else if (tool !== 'seed') document.getElementById('decorMenu').innerHTML = '';
+    const seedMenu = document.getElementById('seedMenu'), decorMenu = document.getElementById('decorMenu');
+    if (tool === 'seed') { buildSeedMenu(); seedMenu.classList.add('show'); decorMenu.classList.remove('show'); decorMenu.innerHTML = ''; }
+    else if (tool === 'decor') { buildDecorMenu(); decorMenu.classList.add('show'); seedMenu.classList.remove('show'); }
+    else { seedMenu.classList.remove('show'); decorMenu.classList.remove('show'); decorMenu.innerHTML = ''; }
   });
 });
 document.getElementById('resetBtn').onclick = () => {

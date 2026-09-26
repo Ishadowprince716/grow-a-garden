@@ -7,7 +7,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
 
 // ---- Save integrity (spec §SAVE): versioned, checksummed persistence ----
-const STATE_VERSION = 1;
+const STATE_VERSION = 2;
 
 // canonical sort of object keys so the checksum is stable regardless of key order
 function canon(obj) {
@@ -34,13 +34,29 @@ function wrapSave(state) { return { v: STATE_VERSION, sum: checksum(state), s: s
 // unwrap + verify; migrates legacy (bare) states. Returns {ok, state, v?, error?}
 function unwrapSave(raw) {
   if (!raw || typeof raw !== 'object') return { ok: false, error: 'not an object' };
-  if (raw.v === undefined) {           // legacy: bare state object
+  // legacy: bare state object (pre-envelope)
+  if (raw.v === undefined) {
+    if (!isValidState(raw) && raw.coins !== undefined && raw.ledger === undefined) {
+      raw.ledger = openLedger(raw.coins);          // seed ledger from coins
+      if (isValidState(raw)) return { ok: true, state: raw, migrated: true, v: 0 };
+    }
     if (isValidState(raw)) return { ok: true, state: raw, migrated: true, v: 0 };
     return { ok: false, error: 'invalid legacy state' };
   }
+  // envelope: verify checksum on the ORIGINAL payload first
   if (raw.sum !== checksum(raw.s)) return { ok: false, error: 'checksum mismatch (corrupt save)' };
+  // versioned migration: v<2 saves predate the ledger — seed it from coins
+  if ((raw.v || 0) < 2 && raw.s && raw.s.ledger === undefined && raw.s.coins !== undefined) {
+    raw.s.ledger = openLedger(raw.s.coins);
+  }
   if (!isValidState(raw.s)) return { ok: false, error: 'invalid state' };
   return { ok: true, state: raw.s, v: raw.v };
+}
+
+// seed ledger from a legacy coin balance
+function openLedger(coins) {
+  const c = Math.max(0, Math.trunc(coins) || 0);
+  return c > 0 ? [{ i: 0, a: c, r: 'opening', t: Date.now() }] : [];
 }
 
 const CROP_KEYS = ['carrot','tomato','corn','pumpkin','strawberry','watermelon','grape','dragon','goldenrose','cactus','star'];
@@ -61,9 +77,27 @@ function validDecor(d) {
   return DECOR_KEYS.includes(d);
 }
 
+function validLedger(l) {
+  // append-only coin ledger: array of {i, a, r, t}; balance derives from sum(a), never negative.
+  if (!Array.isArray(l)) return false;
+  let b = 0;
+  for (let k = 0; k < l.length; k++) {
+    const tx = l[k];
+    if (!tx || typeof tx !== 'object') return false;
+    if (tx.i !== k) return false;                       // contiguous indices
+    if (!Number.isFinite(tx.a) || Math.trunc(tx.a) !== tx.a || tx.a === 0) return false; // int, non-zero
+    if (typeof tx.r !== 'string' || !tx.r) return false;
+    b += tx.a;
+    if (b < 0) return false;                            // never overdrawn
+  }
+  return true;
+}
+
 function isValidState(s) {
   return !!s
     && typeof s.coins === 'number' && Number.isFinite(s.coins) && s.coins >= 0
+    && validLedger(s.ledger)
+    && (s.ledger.length === 0 || s.ledger.reduce((x, t) => x + t.a, 0) === s.coins) // coins == ledger balance
     && typeof s.xp === 'number' && Number.isFinite(s.xp) && s.xp >= 0
     && typeof s.level === 'number' && Number.isFinite(s.level) && s.level >= 1 && s.level <= 50
     && Array.isArray(s.basket) && s.basket.every(t => typeof t === 'string')
@@ -76,6 +110,7 @@ function isValidState(s) {
 function defaultState() {
   return {
     coins: 20, xp: 0, level: 1, basket: [],
+    ledger: [{ i: 0, a: 20, r: 'opening', t: Date.now() }],
     plots: Array(20).fill(null), decor: Array(20).fill(null), unlocked: 8, seedSel: 'carrot',
   };
 }
